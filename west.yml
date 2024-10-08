@@ -7,20 +7,18 @@ manifest:
     west-commands: scripts/west-commands.yml
 
   remotes:
-    - name: zephyrproject-rtos
-      url-base: https://github.com/zephyrproject-rtos
-    - name: astarte-platform
-      url-base: https://github.com/astarte-platform
+    - name: sorru94
+      url-base: https://github.com/sorru94
 
   projects:
     - name: zephyr
-      remote: zephyrproject-rtos
-      revision: v3.7.0
+      remote: sorru94
+      revision: heap-listeners
       import: true
     - name: astarte-device-sdk-zephyr
-      remote: astarte-platform
+      remote: sorru94
       repo-path: astarte-device-sdk-zephyr.git
       path: astarte-device-sdk-zephyr
-      revision: v0.7.2
+      revision: heap_statistics
       west-commands: scripts/west-commands.yml
       import: true
