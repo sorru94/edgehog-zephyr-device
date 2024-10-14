@@ -1,0 +1,12 @@
+{% extends "base.html.jinja" %}
+{% block content %}
+
+    <h2>Folders</h2>
+    {% import 'lists.html.jinja' as lists with context %}
+    {{ lists.directory(root_folders, []) }}
+
+    <a class="btn btn-default" href="{{ url_for('all') }}">Show all symbols</a>
+    <a class="btn btn-default" href="{{ url_for('rack') }}">Analyze text snippet</a>
+
+
+{% endblock %}
