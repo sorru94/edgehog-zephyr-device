@@ -44,10 +44,13 @@ LOG_MODULE_REGISTER(edgehog_app, CONFIG_APP_LOG_LEVEL); // NOLINT
 #define TELEMETRY_PERIOD_S 5
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-#define DEVICE_THREADS_FLAGS_TERMINATION 1U
-#define DEVICE_THREADS_FLAGS_CREATE_EDGEHOG 2U
-#define DEVICE_THREADS_FLAGS_CONNECT_ASTARTE 3U
-#define DEVICE_THREADS_FLAGS_START_EDGEHOG 4U
+enum device_tread_flags
+{
+    DEVICE_THREADS_FLAGS_TERMINATION = 1U,
+    DEVICE_THREADS_FLAGS_CONNECT_ASTARTE,
+    DEVICE_THREADS_FLAGS_START_EDGEHOG,
+
+};
 static atomic_t device_threads_flags;
 
 K_THREAD_STACK_DEFINE(astarte_device_thread_stack_area, CONFIG_ASTARTE_DEVICE_THREAD_STACK_SIZE);
@@ -62,14 +65,10 @@ static edgehog_device_handle_t edgehog_device;
 
 #ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
 // Define a zbus subscriber and add it as an observer to the Edgehog OTA channel
-ZBUS_SUBSCRIBER_DEFINE(edgehog_ota_subscriber, 4);
-ZBUS_CHAN_ADD_OBS(edgehog_ota_chan, edgehog_ota_subscriber, 5);
-
-#define EDGEHOG_OTA_SUBSCRIBER_THREAD_STACK_SIZE 1024
-#define EDGEHOG_OTA_SUBSCRIBER_THREAD_PRIORIYT 3
-K_THREAD_STACK_DEFINE(
-    edgehog_ota_subscriber_thread_stack_area, EDGEHOG_OTA_SUBSCRIBER_THREAD_STACK_SIZE);
-static struct k_thread edgehog_ota_subscriber_thread_data;
+#define EDGEHOG_OTA_SUBSCRIBER_NOTIFICATION_QUEUE_SIZE 5
+#define EDGEHOG_OTA_OBSERVER_NOTIFY_PRIORITY 5
+ZBUS_SUBSCRIBER_DEFINE(edgehog_ota_subscriber, EDGEHOG_OTA_SUBSCRIBER_NOTIFICATION_QUEUE_SIZE);
+ZBUS_CHAN_ADD_OBS(edgehog_ota_chan, edgehog_ota_subscriber, EDGEHOG_OTA_OBSERVER_NOTIFY_PRIORITY);
 #endif
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -81,16 +80,6 @@ static struct k_thread edgehog_ota_subscriber_thread_data;
  * @brief Initialize System Time
  */
 static void system_time_init(void);
-#ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
-/**
- * @brief Entry point for the Edgehog OTA zbus subscriber thread.
- *
- * @param arg1 Unused argument.
- * @param arg2 Unused argument.
- * @param arg3 Unused argument.
- */
-static void edgehog_ota_subscriber_thread_entry_point(void *arg1, void *arg2, void *arg3);
-#endif
 /**
  * @brief Entry point for the Astarte device thread.
  *
@@ -145,6 +134,15 @@ static void astarte_device_property_set_callback(astarte_device_property_set_eve
  * @param event Astarte device property unset event pointer.
  */
 static void astarte_device_property_unset_callback(astarte_device_data_event_t event);
+#ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
+/**
+ * @brief Listen on the Edgehog zbus channel for events.
+ *
+ * @param timeout The timeout used for listening. In case of a received notification this timeout
+ * is also used for reading the message.
+ */
+static void edgehog_listen_zbus_channel(k_timeout_t timeout);
+#endif
 
 /************************************************
  * Global functions definition
@@ -177,21 +175,10 @@ int main(void)
     // Initalize the system time
     system_time_init();
 
-#ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
-    // Start an observer thread for the Edgehog OTA update events
-    k_thread_create(&edgehog_ota_subscriber_thread_data, edgehog_ota_subscriber_thread_stack_area,
-        K_THREAD_STACK_SIZEOF(edgehog_ota_subscriber_thread_stack_area),
-        edgehog_ota_subscriber_thread_entry_point, NULL, NULL, NULL,
-        EDGEHOG_OTA_SUBSCRIBER_THREAD_PRIORIYT, 0, K_NO_WAIT);
-#endif
-
     // Spawn a new thread for the Astarte device and one for the Edgehog device
     k_thread_create(&astarte_device_thread_data, astarte_device_thread_stack_area,
         K_THREAD_STACK_SIZEOF(astarte_device_thread_stack_area), astarte_device_thread_entry_point,
         NULL, NULL, NULL, CONFIG_ASTARTE_DEVICE_THREAD_PRIORITY, 0, K_NO_WAIT);
-    k_thread_create(&edgehog_device_thread_data, edgehog_device_thread_stack_area,
-        K_THREAD_STACK_SIZEOF(edgehog_device_thread_stack_area), edgehog_device_thread_entry_point,
-        NULL, NULL, NULL, CONFIG_EDGEHOG_DEVICE_THREAD_PRIORITY, 0, K_NO_WAIT);
 
     // Wait for a predefined operational time.
     k_timepoint_t finish_timepoint = sys_timepoint_calc(K_SECONDS(CONFIG_SAMPLE_DURATION_SECONDS));
@@ -202,7 +189,7 @@ int main(void)
         k_sleep(sys_timepoint_timeout(timepoint));
     }
 
-    // Signal to the Astarte thread that is should terminate.
+    // Signal to the Device threads that they should terminate.
     atomic_set_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION);
 
     // Wait for the Astarte thread to terminate.
@@ -241,104 +228,6 @@ static void system_time_init()
 #endif
 }
 
-#ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
-static void edgehog_ota_subscriber_thread_entry_point(void *arg1, void *arg2, void *arg3)
-{
-    ARG_UNUSED(arg1);
-    ARG_UNUSED(arg2);
-    ARG_UNUSED(arg3);
-
-    const struct zbus_channel *chan = NULL;
-
-    while (zbus_sub_wait(&edgehog_ota_subscriber, &chan, K_FOREVER) == 0) {
-        edgehog_ota_chan_event_t ota = { 0 };
-        if (&edgehog_ota_chan == chan) {
-            // Indirect message access
-            zbus_chan_read(chan, &ota, K_NO_WAIT);
-            switch (ota.event) {
-                case EDGEHOG_OTA_INIT_EVENT:
-                    LOG_WRN("To subscriber -> EDGEHOG_OTA_INIT_EVENT"); // NOLINT
-                    break;
-                case EDGEHOG_OTA_PENDING_REBOOT_EVENT:
-                    LOG_WRN("To subscriber -> EDGEHOG_OTA_PENDING_REBOOT_EVENT"); // NOLINT
-                    edgehog_ota_chan_event_t ota_chan_event
-                        = { .event = EDGEHOG_OTA_CONFIRM_REBOOT_EVENT };
-                    zbus_chan_pub(&edgehog_ota_chan, &ota_chan_event, K_SECONDS(1));
-                    break;
-                case EDGEHOG_OTA_CONFIRM_REBOOT_EVENT:
-                    LOG_WRN("To subscriber -> EDGEHOG_OTA_CONFIRM_REBOOT_EVENT"); // NOLINT
-                    break;
-                case EDGEHOG_OTA_FAILED_EVENT:
-                    LOG_WRN("To subscriber -> EDGEHOG_OTA_FAILED_EVENT"); // NOLINT
-                    break;
-                case EDGEHOG_OTA_SUCCESS_EVENT:
-                    LOG_WRN("To subscriber -> EDGEHOG_OTA_SUCCESS_EVENT"); // NOLINT
-                    break;
-                default:
-                    LOG_WRN("To subscriber -> EDGEHOG_OTA_INVALID_EVENT"); // NOLINT
-            }
-        }
-    }
-}
-#endif
-
-static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3)
-{
-    ARG_UNUSED(arg1);
-    ARG_UNUSED(arg2);
-    ARG_UNUSED(arg3);
-
-    edgehog_result_t eres = EDGEHOG_RESULT_OK;
-
-    while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_CREATE_EDGEHOG)) {
-        k_sleep(K_MSEC(100));
-    }
-
-    edgehog_telemetry_config_t telemetry_config = {
-        .type = EDGEHOG_TELEMETRY_SYSTEM_STATUS,
-        .period_seconds = TELEMETRY_PERIOD_S,
-    };
-    edgehog_device_config_t edgehog_conf = {
-        .astarte_device = astarte_device,
-        .telemetry_config = &telemetry_config,
-        .telemetry_config_len = 1,
-    };
-    eres = edgehog_device_new(&edgehog_conf, &edgehog_device);
-    if (eres != EDGEHOG_RESULT_OK) {
-        LOG_ERR("Unable to create edgehog device handle"); // NOLINT
-        return;
-    }
-
-    // Signal the Astarte thread to connect the device
-    atomic_set_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_CONNECT_ASTARTE);
-    while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_START_EDGEHOG)) {
-        k_sleep(K_MSEC(100));
-    }
-
-    eres = edgehog_device_start(edgehog_device);
-    if (eres != EDGEHOG_RESULT_OK) {
-        LOG_ERR("Unable to start edgehog device"); // NOLINT
-        return;
-    }
-
-    while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION)) {
-        k_sleep(K_MSEC(EDGEHOG_DEVICE_PERIOD_MS));
-    }
-
-    LOG_INF("End of sample, Edgehog stopping imminent."); // NOLINT
-    eres = edgehog_device_stop(edgehog_device, K_FOREVER);
-    if (eres != EDGEHOG_RESULT_OK) {
-        LOG_ERR("Unable to stop the edgehog device"); // NOLINT
-        return;
-    }
-
-    LOG_INF("Edgehog device will now be destroyed."); // NOLINT
-    edgehog_device_destroy(edgehog_device);
-
-    LOG_INF("Edgehog thread will now be terminated."); // NOLINT
-    k_sleep(K_MSEC(MSEC_PER_SEC));
-}
-
 static void astarte_device_thread_entry_point(void *arg1, void *arg2, void *arg3)
 {
     ARG_UNUSED(arg1);
@@ -352,7 +241,6 @@ static void astarte_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     char device_id[ASTARTE_DEVICE_ID_LEN + 1] = CONFIG_ASTARTE_DEVICE_ID;
 
     astarte_device_config_t astarte_device_config = { 0 };
-    memset(&astarte_device_config, 0, sizeof(astarte_device_config));
     astarte_device_config.http_timeout_ms = HTTP_TIMEOUT_MS;
     astarte_device_config.mqtt_connection_timeout_ms = MQTT_FIRST_POLL_TIMEOUT_MS;
     astarte_device_config.mqtt_poll_timeout_ms = MQTT_POLL_TIMEOUT_MS;
@@ -369,12 +257,19 @@ static void astarte_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     ares = astarte_device_new(&astarte_device_config, &astarte_device);
     if (ares != ASTARTE_RESULT_OK) {
         LOG_ERR("Astarte device creation failure."); // NOLINT
-        return;
+        goto exit;
     }
 
-    // Signal the Edgehog thread to create the device
-    atomic_set_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_CREATE_EDGEHOG);
+    // Create a thread for the Edgehog management
+    k_thread_create(&edgehog_device_thread_data, edgehog_device_thread_stack_area,
+        K_THREAD_STACK_SIZEOF(edgehog_device_thread_stack_area), edgehog_device_thread_entry_point,
+        NULL, NULL, NULL, CONFIG_EDGEHOG_DEVICE_THREAD_PRIORITY, 0, K_NO_WAIT);
+
+    // Wait for the Edgehog thread to signal green light for Astarte connection
     while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_CONNECT_ASTARTE)) {
+        if (atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION)) {
+            goto exit;
+        }
         k_sleep(K_MSEC(100));
     }
 
@@ -382,7 +277,7 @@ static void astarte_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     ares = astarte_device_connect(astarte_device);
     if (ares != ASTARTE_RESULT_OK) {
         LOG_ERR("Astarte device connection failure."); // NOLINT
-        return;
+        goto exit;
     }
 
     while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION)) {
@@ -391,7 +286,7 @@ static void astarte_device_thread_entry_point(void *arg1, void *arg2, void *arg3
         ares = astarte_device_poll(astarte_device);
         if (ares != ASTARTE_RESULT_OK) {
             LOG_ERR("Astarte device poll failure."); // NOLINT
-            return;
+            goto exit;
         }
 
         k_sleep(sys_timepoint_timeout(timepoint));
@@ -401,18 +296,84 @@ static void astarte_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     ares = astarte_device_disconnect(astarte_device);
     if (ares != ASTARTE_RESULT_OK) {
         LOG_ERR("Astarte device disconnection failure."); // NOLINT
-        return;
+        goto exit;
     }
 
     LOG_INF("Astarte device will now be destroyed."); // NOLINT
     ares = astarte_device_destroy(astarte_device);
     if (ares != ASTARTE_RESULT_OK) {
         LOG_ERR("Astarte device destroy failure."); // NOLINT
-        return;
     }
 
-    LOG_INF("Astarte thread will now be terminated."); // NOLINT
-    k_sleep(K_MSEC(MSEC_PER_SEC));
+exit:
+    // Ensure to set the thread termination flag
+    atomic_set_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION);
+
+    // Wait for the Edgehog thread to terminate.
+    if (k_thread_join(&edgehog_device_thread_data, K_SECONDS(10)) != 0) {
+        LOG_ERR("Failed in waiting for the Edgehog thread to terminate."); // NOLINT
+    }
+}
+
+static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3)
+{
+    ARG_UNUSED(arg1);
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
+
+    edgehog_result_t eres = EDGEHOG_RESULT_OK;
+
+    edgehog_telemetry_config_t telemetry_config = {
+        .type = EDGEHOG_TELEMETRY_SYSTEM_STATUS,
+        .period_seconds = TELEMETRY_PERIOD_S,
+    };
+    edgehog_device_config_t edgehog_conf = {
+        .astarte_device = astarte_device,
+        .telemetry_config = &telemetry_config,
+        .telemetry_config_len = 1,
+    };
+    eres = edgehog_device_new(&edgehog_conf, &edgehog_device);
+    if (eres != EDGEHOG_RESULT_OK) {
+        LOG_ERR("Unable to create edgehog device handle"); // NOLINT
+        goto exit;
+    }
+
+    // Signal the Astarte thread to connect the device
+    atomic_set_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_CONNECT_ASTARTE);
+    while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_START_EDGEHOG)) {
+        if (atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION)) {
+            goto exit;
+        }
+        k_sleep(K_MSEC(100));
+    }
+
+    eres = edgehog_device_start(edgehog_device);
+    if (eres != EDGEHOG_RESULT_OK) {
+        LOG_ERR("Unable to start edgehog device"); // NOLINT
+        goto exit;
+    }
+
+    while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION)) {
+#ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
+        edgehog_listen_zbus_channel(K_MSEC(EDGEHOG_DEVICE_PERIOD_MS));
+#else
+        k_sleep(K_MSEC(EDGEHOG_DEVICE_PERIOD_MS));
+#endif
+    }
+
+    LOG_INF("End of sample, Edgehog stopping imminent."); // NOLINT
+    eres = edgehog_device_stop(edgehog_device, K_FOREVER);
+    if (eres != EDGEHOG_RESULT_OK) {
+        LOG_ERR("Unable to stop the edgehog device"); // NOLINT
+        goto exit;
+    }
+
+    LOG_INF("Edgehog device will now be destroyed."); // NOLINT
+    edgehog_device_destroy(edgehog_device);
+
+exit:
+    // Ensure to set the thread termination flag
+    atomic_set_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION);
 }
 
 static void astarte_device_connection_callback(astarte_device_connection_event_t event)
@@ -461,3 +422,36 @@ static void astarte_device_property_unset_callback(astarte_device_data_event_t e
 
     edgehog_device_property_unset_events_handler(*edgehog_device, event);
 }
+
+#ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
+static void edgehog_listen_zbus_channel(k_timeout_t timeout)
+{
+    const struct zbus_channel *chan = NULL;
+    edgehog_ota_chan_event_t ota = { 0 };
+    if ((zbus_sub_wait(&edgehog_ota_subscriber, &chan, timeout) == 0) && (&edgehog_ota_chan == chan)
+        && (zbus_chan_read(chan, &ota, timeout) == 0)) {
+        switch (ota.event) {
+            case EDGEHOG_OTA_INIT_EVENT:
+                LOG_WRN("To subscriber -> EDGEHOG_OTA_INIT_EVENT"); // NOLINT
+                break;
+            case EDGEHOG_OTA_PENDING_REBOOT_EVENT:
+                LOG_WRN("To subscriber -> EDGEHOG_OTA_PENDING_REBOOT_EVENT"); // NOLINT
+                edgehog_ota_chan_event_t ota_chan_event
+                    = { .event = EDGEHOG_OTA_CONFIRM_REBOOT_EVENT };
+                zbus_chan_pub(&edgehog_ota_chan, &ota_chan_event, K_SECONDS(1));
+                break;
+            case EDGEHOG_OTA_CONFIRM_REBOOT_EVENT:
+                LOG_WRN("To subscriber -> EDGEHOG_OTA_CONFIRM_REBOOT_EVENT"); // NOLINT
+                break;
+            case EDGEHOG_OTA_FAILED_EVENT:
+                LOG_WRN("To subscriber -> EDGEHOG_OTA_FAILED_EVENT"); // NOLINT
+                break;
+            case EDGEHOG_OTA_SUCCESS_EVENT:
+                LOG_WRN("To subscriber -> EDGEHOG_OTA_SUCCESS_EVENT"); // NOLINT
+                break;
+            default:
+                LOG_WRN("To subscriber -> EDGEHOG_OTA_INVALID_EVENT"); // NOLINT
+        }
+    }
+}
+#endif
