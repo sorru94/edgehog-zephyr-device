@@ -29,6 +29,8 @@ LOG_MODULE_REGISTER(edgehog_app, CONFIG_APP_LOG_LEVEL); // NOLINT
 
 #include "eth.h"
 
+#include <zephyr/sys/heap_listener.h>
+
 /************************************************
  * Constants and defines
  ***********************************************/
@@ -148,6 +150,94 @@ static void edgehog_listen_zbus_channel(k_timeout_t timeout);
  * Global functions definition
  ***********************************************/
 
+struct heap_event
+{
+    enum heap_event_types type;
+    uintptr_t heap_id;
+    int64_t clock_cycles;
+    void *mem;
+    size_t bytes;
+    void *old_heap_end;
+    void *new_heap_end;
+};
+
+#define HEAP_EVENTS_SIZE 65536
+static uint64_t heap_events_idx = 0;
+static struct heap_event heap_events[HEAP_EVENTS_SIZE] = { 0 };
+
+/**
+ * NOTE: This is supposed to work on the system heap. However, since there is no clean way to
+ * get a reference to the system heap some changes should take place in the
+ * zephyr/lib/heap/heap_listener.c file.
+ *
+ * Specifically, disable the check on the listener heap ID for all the notify functions
+ * Remove `listener->heap_id == heap_id` from the if guards.
+ */
+
+static void on_heap_alloc(uintptr_t heap_id, void *mem, size_t bytes)
+{
+    if (heap_events_idx < HEAP_EVENTS_SIZE) {
+        heap_events[heap_events_idx].type = HEAP_ALLOC;
+        heap_events[heap_events_idx].heap_id = heap_id;
+        heap_events[heap_events_idx].clock_cycles = k_cycle_get_64();
+        heap_events[heap_events_idx].mem = mem;
+        heap_events[heap_events_idx].bytes = bytes;
+        heap_events_idx++;
+    }
+    LOG_WRN("Memory allocated on heap %lu at %p, size %u", heap_id, mem, bytes);
+}
+static void on_heap_free(uintptr_t heap_id, void *mem, size_t bytes)
+{
+    if (heap_events_idx < HEAP_EVENTS_SIZE) {
+        heap_events[heap_events_idx].type = HEAP_FREE;
+        heap_events[heap_events_idx].heap_id = heap_id;
+        heap_events[heap_events_idx].clock_cycles = k_cycle_get_64();
+        heap_events[heap_events_idx].mem = mem;
+        heap_events[heap_events_idx].bytes = bytes;
+        heap_events_idx++;
+    }
+    LOG_WRN("Memory freed on heap %lu at %p, size %u", heap_id, mem, bytes);
+}
+void on_heap_resized(uintptr_t heap_id, void *old_heap_end, void *new_heap_end)
+{
+    if (heap_events_idx < HEAP_EVENTS_SIZE) {
+        heap_events[heap_events_idx].type = HEAP_RESIZE;
+        heap_events[heap_events_idx].heap_id = heap_id;
+        heap_events[heap_events_idx].clock_cycles = k_cycle_get_64();
+        heap_events[heap_events_idx].old_heap_end = old_heap_end;
+        heap_events[heap_events_idx].new_heap_end = new_heap_end;
+        heap_events_idx++;
+    }
+    LOG_WRN("Libc heap %lu end moved from %p to %p", heap_id, old_heap_end, new_heap_end);
+}
+HEAP_LISTENER_ALLOC_DEFINE(on_alloc_listener, 0, on_heap_alloc);
+HEAP_LISTENER_FREE_DEFINE(on_free_listener, 0, on_heap_free);
+HEAP_LISTENER_RESIZE_DEFINE(on_resized_listener, 0, on_heap_resized);
+
+void print_heap_allocations(uint64_t heap_events_n)
+{
+    for (uint64_t i = 0; i < heap_events_n; i++) {
+        switch (heap_events[i].type) {
+            case HEAP_ALLOC:
+                printk("ALLO;%012llu;%lu;%p;%04u\n", heap_events[i].clock_cycles,
+                    heap_events[i].heap_id, heap_events[i].mem, heap_events[i].bytes);
+                break;
+            case HEAP_FREE:
+                printk("FREE;%012llu;%lu;%p;%04u\n", heap_events[i].clock_cycles,
+                    heap_events[i].heap_id, heap_events[i].mem, heap_events[i].bytes);
+                break;
+            case HEAP_RESIZE:
+                printk("RESI;%012llu;%lu;%p;%p\n", heap_events[i].clock_cycles,
+                    heap_events[i].heap_id, heap_events[i].old_heap_end,
+                    heap_events[i].new_heap_end);
+                break;
+            default:
+                break;
+        }
+        k_sleep(K_MSEC(10));
+    }
+}
+
 // NOLINTNEXTLINE(hicpp-function-size)
 int main(void)
 {
@@ -171,6 +261,10 @@ int main(void)
     tls_credential_add(CONFIG_EDGEHOG_DEVICE_CA_CERT_OTA_TAG, TLS_CREDENTIAL_CA_CERTIFICATE,
         ota_ca_certificate_root, sizeof(ota_ca_certificate_root));
 #endif
+
+    heap_listener_register(&on_alloc_listener);
+    heap_listener_register(&on_free_listener);
+    heap_listener_register(&on_resized_listener);
 
     // Initalize the system time
     system_time_init();
@@ -196,6 +290,22 @@ int main(void)
     if (k_thread_join(&astarte_device_thread_data, K_FOREVER) != 0) {
         LOG_ERR("Failed in waiting for the Astarte thread to terminate."); // NOLINT
     }
+
+    LOG_INF("Capture NOW!!"); // NOLINT
+    k_sleep(K_SECONDS(30));
+
+    const uint64_t heap_events_n = heap_events_idx;
+    LOG_INF("Number of heap events %llu.", heap_events_n); // NOLINT
+    LOG_INF("System clock cycles per second %u.", sys_clock_hw_cycles_per_sec()); // NOLINT
+
+    LOG_INF("First transmission."); // NOLINT
+    print_heap_allocations(heap_events_n);
+
+    LOG_INF("Second transmission."); // NOLINT
+    print_heap_allocations(heap_events_n);
+
+    LOG_INF("Third transmission."); // NOLINT
+    print_heap_allocations(heap_events_n);
 
     LOG_INF("Edgehog device sample finished."); // NOLINT
     k_sleep(K_MSEC(MSEC_PER_SEC));
