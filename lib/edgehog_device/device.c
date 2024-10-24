@@ -13,6 +13,7 @@
 #include "edgehog_private.h"
 #include "generated_interfaces.h"
 #include "hardware_info.h"
+#include "heap.h"
 #include "led.h"
 #include "log.h"
 #include "os_info.h"
@@ -60,7 +61,7 @@ edgehog_result_t edgehog_device_new(
     }
 
     edgehog_device_handle_t edgehog_device
-        = (edgehog_device_handle_t) calloc(1, sizeof(struct edgehog_device_t));
+        = (edgehog_device_handle_t) edgehog_calloc(1, sizeof(struct edgehog_device_t));
     if (!edgehog_device) {
         EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
         return EDGEHOG_RESULT_OUT_OF_MEMORY;
@@ -100,14 +101,14 @@ edgehog_result_t edgehog_device_new(
     return res;
 
 failure:
-    free(edgehog_device);
+    edgehog_free(edgehog_device);
     return res;
 }
 
 void edgehog_device_destroy(edgehog_device_handle_t edgehog_device)
 {
     edgehog_telemetry_destroy(edgehog_device->telemetry);
-    free(edgehog_device);
+    edgehog_free(edgehog_device);
 }
 
 edgehog_result_t edgehog_device_start(edgehog_device_handle_t edgehog_device)
