@@ -69,6 +69,21 @@ config EDGEHOG_DEVICE_DEVELOP_DISABLE_OR_IGNORE_TLS
 
 	  Should be used only for development purposes as it's highly unsafe.
 
+config EDGEHOG_DEVICE_ENABLE_HEAP
+	bool "Enable the dedicated heap for the Edgehog devices."
+	depends on EDGEHOG_DEVICE
+	default n
+	help
+	  Dynamic allocation will be performed on a dedicated heap.
+
+config EDGEHOG_DEVICE_HEAP_SIZE
+	int "Size of the dedicate heap for the Edgehog devices"
+	depends on EDGEHOG_DEVICE
+	depends on EDGEHOG_DEVICE_ENABLE_HEAP
+	default 4096
+	help
+	  This size should be at least 4k for a single device.
+
 endmenu
 
 menu "Logging options"
