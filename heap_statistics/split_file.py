@@ -7,11 +7,14 @@ def split_file_by_transmission(input_file, out_folder, out_prefix):
 
         transmission_indices = [i for i, line in enumerate(lines) if 'transmission' in line]
         closing_indices = [i for i, line in enumerate(lines) if 'Edgehog device sample finished' in line]
+        if not closing_indices:
+            closing_indices = [i for i, line in enumerate(lines) if 'Capture done' in line]
+
 
         if len(transmission_indices) != 3:
             raise ValueError("Input file should contain exactly 3 lines with 'transmission'.")
         if len(closing_indices) != 1:
-            raise ValueError("Input file should contain exactly 1 line with 'Edgehog device sample finished'.")
+            raise ValueError("Input file should contain exactly 1 line with 'Edgehog device sample finished' or 'Capture done'.")
 
         # Create output files
         output_files = [out_folder.joinpath(f"{out_prefix}{i+1}.txt") for i in range(3)]

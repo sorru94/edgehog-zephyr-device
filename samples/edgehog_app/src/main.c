@@ -184,7 +184,7 @@ static void on_heap_alloc(uintptr_t heap_id, void *mem, size_t bytes)
         heap_events[heap_events_idx].bytes = bytes;
         heap_events_idx++;
     }
-    LOG_WRN("Memory allocated on heap %lu at %p, size %u", heap_id, mem, bytes);
+    // LOG_WRN("Memory allocated on heap %lu at %p, size %u", heap_id, mem, bytes);
 }
 static void on_heap_free(uintptr_t heap_id, void *mem, size_t bytes)
 {
@@ -196,7 +196,7 @@ static void on_heap_free(uintptr_t heap_id, void *mem, size_t bytes)
         heap_events[heap_events_idx].bytes = bytes;
         heap_events_idx++;
     }
-    LOG_WRN("Memory freed on heap %lu at %p, size %u", heap_id, mem, bytes);
+    // LOG_WRN("Memory freed on heap %lu at %p, size %u", heap_id, mem, bytes);
 }
 void on_heap_resized(uintptr_t heap_id, void *old_heap_end, void *new_heap_end)
 {
@@ -208,7 +208,7 @@ void on_heap_resized(uintptr_t heap_id, void *old_heap_end, void *new_heap_end)
         heap_events[heap_events_idx].new_heap_end = new_heap_end;
         heap_events_idx++;
     }
-    LOG_WRN("Libc heap %lu end moved from %p to %p", heap_id, old_heap_end, new_heap_end);
+    // LOG_WRN("Libc heap %lu end moved from %p to %p", heap_id, old_heap_end, new_heap_end);
 }
 HEAP_LISTENER_ALLOC_DEFINE(on_alloc_listener, 0, on_heap_alloc);
 HEAP_LISTENER_FREE_DEFINE(on_free_listener, 0, on_heap_free);
@@ -545,6 +545,26 @@ static void edgehog_listen_zbus_channel(k_timeout_t timeout)
                 LOG_WRN("To subscriber -> EDGEHOG_OTA_INIT_EVENT"); // NOLINT
                 break;
             case EDGEHOG_OTA_PENDING_REBOOT_EVENT:
+
+                LOG_INF("Capture NOW!!"); // NOLINT
+                k_sleep(K_SECONDS(60));
+
+                const uint64_t heap_events_n = heap_events_idx;
+                LOG_INF("Number of heap events %llu.", heap_events_n); // NOLINT
+                LOG_INF("System clock cycles per second %u.", sys_clock_hw_cycles_per_sec()); // NOLINT
+
+                LOG_INF("First transmission."); // NOLINT
+                print_heap_allocations(heap_events_n);
+
+                LOG_INF("Second transmission."); // NOLINT
+                print_heap_allocations(heap_events_n);
+
+                LOG_INF("Third transmission."); // NOLINT
+                print_heap_allocations(heap_events_n);
+
+                LOG_INF("Capture done"); // NOLINT
+                k_sleep(K_SECONDS(60));
+
                 LOG_WRN("To subscriber -> EDGEHOG_OTA_PENDING_REBOOT_EVENT"); // NOLINT
                 edgehog_ota_chan_event_t ota_chan_event
                     = { .event = EDGEHOG_OTA_CONFIRM_REBOOT_EVENT };
