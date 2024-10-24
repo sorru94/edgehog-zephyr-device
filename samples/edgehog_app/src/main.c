@@ -8,6 +8,7 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/sntp.h>
 #include <zephyr/posix/time.h>
+#include <zephyr/sys/mutex.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(edgehog_app, CONFIG_APP_LOG_LEVEL); // NOLINT
@@ -238,6 +239,27 @@ void print_heap_allocations(uint64_t heap_events_n)
     }
 }
 
+void redundant_print_heap_allocations(uint64_t heap_events_n)
+{
+    LOG_INF("Capture now!!"); // NOLINT
+    k_sleep(K_SECONDS(30));
+
+    LOG_INF("Number of heap events %llu.", heap_events_n); // NOLINT
+    LOG_INF("System clock cycles per second %u.", sys_clock_hw_cycles_per_sec()); // NOLINT
+
+    LOG_INF("First transmission."); // NOLINT
+    print_heap_allocations(heap_events_n);
+
+    LOG_INF("Second transmission."); // NOLINT
+    print_heap_allocations(heap_events_n);
+
+    LOG_INF("Third transmission."); // NOLINT
+    print_heap_allocations(heap_events_n);
+
+    LOG_INF("Capture done."); // NOLINT
+    k_sleep(K_SECONDS(30));
+}
+
 // NOLINTNEXTLINE(hicpp-function-size)
 int main(void)
 {
@@ -291,21 +313,8 @@ int main(void)
         LOG_ERR("Failed in waiting for the Astarte thread to terminate."); // NOLINT
     }
 
-    LOG_INF("Capture NOW!!"); // NOLINT
-    k_sleep(K_SECONDS(30));
-
     const uint64_t heap_events_n = heap_events_idx;
-    LOG_INF("Number of heap events %llu.", heap_events_n); // NOLINT
-    LOG_INF("System clock cycles per second %u.", sys_clock_hw_cycles_per_sec()); // NOLINT
-
-    LOG_INF("First transmission."); // NOLINT
-    print_heap_allocations(heap_events_n);
-
-    LOG_INF("Second transmission."); // NOLINT
-    print_heap_allocations(heap_events_n);
-
-    LOG_INF("Third transmission."); // NOLINT
-    print_heap_allocations(heap_events_n);
+    redundant_print_heap_allocations(heap_events_n);
 
     LOG_INF("Edgehog device sample finished."); // NOLINT
     k_sleep(K_MSEC(MSEC_PER_SEC));
@@ -546,24 +555,8 @@ static void edgehog_listen_zbus_channel(k_timeout_t timeout)
                 break;
             case EDGEHOG_OTA_PENDING_REBOOT_EVENT:
 
-                LOG_INF("Capture NOW!!"); // NOLINT
-                k_sleep(K_SECONDS(60));
-
-                const uint64_t heap_events_n = heap_events_idx;
-                LOG_INF("Number of heap events %llu.", heap_events_n); // NOLINT
-                LOG_INF("System clock cycles per second %u.", sys_clock_hw_cycles_per_sec()); // NOLINT
-
-                LOG_INF("First transmission."); // NOLINT
-                print_heap_allocations(heap_events_n);
-
-                LOG_INF("Second transmission."); // NOLINT
-                print_heap_allocations(heap_events_n);
-
-                LOG_INF("Third transmission."); // NOLINT
-                print_heap_allocations(heap_events_n);
-
-                LOG_INF("Capture done"); // NOLINT
-                k_sleep(K_SECONDS(60));
+                // const uint64_t heap_events_n = heap_events_idx;
+                // redundant_print_heap_allocations(heap_events_n);
 
                 LOG_WRN("To subscriber -> EDGEHOG_OTA_PENDING_REBOOT_EVENT"); // NOLINT
                 edgehog_ota_chan_event_t ota_chan_event
