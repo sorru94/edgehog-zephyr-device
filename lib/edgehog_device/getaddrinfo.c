@@ -8,6 +8,8 @@
 
 #include <zephyr/net/socket_offload.h>
 
+#include "heap.h"
+
 /************************************************
  *        Defines, constants and typedef        *
  ***********************************************/
@@ -58,7 +60,7 @@ int edgehog_getaddrinfo(const char *host, const char *service, const struct zsoc
     int ret = DNS_EAI_FAIL;
 
 #if defined(ANY_RESOLVER)
-    *res = calloc(AI_ARR_MAX, sizeof(struct zsock_addrinfo));
+    *res = edgehog_calloc(AI_ARR_MAX, sizeof(struct zsock_addrinfo));
     if (!(*res)) {
         return DNS_EAI_MEMORY;
     }
@@ -79,7 +81,7 @@ int edgehog_getaddrinfo(const char *host, const char *service, const struct zsoc
 
 #if defined(ANY_RESOLVER)
     if (ret) {
-        free(*res);
+        edgehog_free(*res);
         *res = NULL;
     }
 #endif
@@ -94,7 +96,7 @@ void edgehog_freeaddrinfo(struct zsock_addrinfo *ai)
         return socket_offload_freeaddrinfo(ai);
     }
 
-    free(ai);
+    edgehog_free(ai);
 }
 
 /************************************************
