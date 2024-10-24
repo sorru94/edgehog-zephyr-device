@@ -10,6 +10,7 @@
 #include "edgehog_device/ota_event.h"
 #include "edgehog_private.h"
 #include "generated_interfaces.h"
+#include "heap.h"
 #include "http.h"
 #include "settings.h"
 #include "system_time.h"
@@ -344,7 +345,7 @@ static edgehog_result_t edgehog_ota_event_update(
     memset(ota_thread_data, 0, sizeof(ota_thread_data_t));
 
     size_t req_uuid_len = strlen(ota_request->uuid);
-    ota_thread_data->ota_request.uuid = (char *) calloc((req_uuid_len + 1), sizeof(char));
+    ota_thread_data->ota_request.uuid = (char *) edgehog_calloc((req_uuid_len + 1), sizeof(char));
     if (!ota_thread_data->ota_request.uuid) {
         EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
         edgehog_result = EDGEHOG_RESULT_OUT_OF_MEMORY;
@@ -353,7 +354,8 @@ static edgehog_result_t edgehog_ota_event_update(
     strncpy(ota_thread_data->ota_request.uuid, ota_request->uuid, req_uuid_len + 1);
 
     size_t ota_url_len = strlen(ota_request->download_url);
-    ota_thread_data->ota_request.download_url = (char *) calloc((ota_url_len + 1), sizeof(char));
+    ota_thread_data->ota_request.download_url
+        = (char *) edgehog_calloc((ota_url_len + 1), sizeof(char));
     if (!ota_thread_data->ota_request.download_url) {
         EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
         edgehog_result = EDGEHOG_RESULT_OUT_OF_MEMORY;
@@ -384,8 +386,8 @@ static edgehog_result_t edgehog_ota_event_update(
     return edgehog_result;
 
 fail:
-    free(ota_thread_data->ota_request.download_url);
-    free(ota_thread_data->ota_request.uuid);
+    edgehog_free(ota_thread_data->ota_request.download_url);
+    edgehog_free(ota_thread_data->ota_request.uuid);
 
     return edgehog_result;
 }
@@ -477,8 +479,8 @@ static void ota_thread_entry_point(void *edgehog_device, void *ptr2, void *ptr3)
 selfdestruct:
     atomic_clear_bit(&edgehog_dev->ota_thread.ota_thread_data.ota_run_state, OTA_STATE_RUN_BIT);
 
-    free(ota_thread_data->ota_request.uuid);
-    free(ota_thread_data->ota_request.download_url);
+    edgehog_free(ota_thread_data->ota_request.uuid);
+    edgehog_free(ota_thread_data->ota_request.download_url);
     edgehog_settings_delete(OTA_KEY, OTA_REQUEST_ID_KEY);
     ota_state = OTA_STATE_IDLE;
     edgehog_settings_save(OTA_KEY, OTA_STATE_KEY, &ota_state, sizeof(uint8_t));
