@@ -8,6 +8,7 @@
 
 #include "edgehog_private.h"
 #include "generated_interfaces.h"
+#include "heap.h"
 #include "settings.h"
 
 #include <stdlib.h>
@@ -359,7 +360,7 @@ static void msgq_thread_entry_point(void *device_ptr, void *queue_ptr, void *unu
 edgehog_telemetry_t *edgehog_telemetry_new(edgehog_telemetry_config_t *configs, size_t configs_len)
 {
     // Allocate space for the telemetry internal struct
-    edgehog_telemetry_t *telemetry = calloc(1, sizeof(edgehog_telemetry_t));
+    edgehog_telemetry_t *telemetry = edgehog_calloc(1, sizeof(edgehog_telemetry_t));
     if (!telemetry) {
         EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
         return NULL;
@@ -368,7 +369,8 @@ edgehog_telemetry_t *edgehog_telemetry_new(edgehog_telemetry_config_t *configs, 
     // Copy the provided settings to the telemetry internal struct
     telemetry->configs_len = configs_len;
     if (configs_len > 0) {
-        telemetry->configs = calloc(telemetry->configs_len, sizeof(edgehog_telemetry_config_t));
+        telemetry->configs
+            = edgehog_calloc(telemetry->configs_len, sizeof(edgehog_telemetry_config_t));
         if (!telemetry->configs) {
             EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
             goto error;
@@ -526,10 +528,10 @@ void edgehog_telemetry_destroy(edgehog_telemetry_t *telemetry)
             && (k_timer_remaining_get(&telemetry->entries[i]->timer) != 0)) {
             k_timer_stop(&telemetry->entries[i]->timer);
         }
-        free(telemetry->entries[i]);
+        edgehog_free(telemetry->entries[i]);
     }
-    free(telemetry->configs);
-    free(telemetry);
+    edgehog_free(telemetry->configs);
+    edgehog_free(telemetry);
 }
 
 /************************************************
@@ -559,7 +561,7 @@ static void load_entries_from_config(
 static telemetry_entry_t *telemetry_entry_new(
     edgehog_telemetry_type_t type, int64_t period_seconds, bool enable)
 {
-    telemetry_entry_t *entry = (telemetry_entry_t *) calloc(1, sizeof(telemetry_entry_t));
+    telemetry_entry_t *entry = (telemetry_entry_t *) edgehog_calloc(1, sizeof(telemetry_entry_t));
 
     if (!entry) {
         EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
@@ -650,7 +652,7 @@ static void set_telemetry_entry(telemetry_entry_t *new_entry, telemetry_entry_t 
     }
 
     telemetry_entry_t *current_entry = entries[entry_idx];
-    free(current_entry);
+    edgehog_free(current_entry);
     entries[entry_idx] = new_entry;
 }
 
@@ -664,7 +666,7 @@ static void remove_telemetry_entry(edgehog_telemetry_type_t type, telemetry_entr
     }
 
     telemetry_entry_t *entry = entries[index];
-    free(entry);
+    edgehog_free(entry);
     entries[index] = NULL;
 }
 
