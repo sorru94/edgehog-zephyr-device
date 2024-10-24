@@ -18,7 +18,9 @@
 
 #include <stdio.h>
 
+#include "getaddrinfo.h"
 #include "log.h"
+
 EDGEHOG_LOG_MODULE_REGISTER(edgehog_http, CONFIG_EDGEHOG_DEVICE_HTTP_LOG_LEVEL);
 
 /************************************************
@@ -191,7 +193,7 @@ static int create_and_connect_socket(const char *hostname, const char *port)
 
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    int getaddrinfo_rc = zsock_getaddrinfo(hostname, port, &hints, &host_addrinfo);
+    int getaddrinfo_rc = edgehog_getaddrinfo(hostname, port, &hints, &host_addrinfo);
     if (getaddrinfo_rc != 0) {
         EDGEHOG_LOG_ERR("Unable to resolve address %s", zsock_gai_strerror(getaddrinfo_rc));
         if (getaddrinfo_rc == DNS_EAI_SYSTEM) {
@@ -209,7 +211,7 @@ static int create_and_connect_socket(const char *hostname, const char *port)
     if (sock == -1) {
         EDGEHOG_LOG_ERR("Socket creation error: %d %s:%s", sock, hostname, port);
         EDGEHOG_LOG_ERR("Errno: %s", strerror(errno));
-        zsock_freeaddrinfo(host_addrinfo);
+        edgehog_freeaddrinfo(host_addrinfo);
         return -1;
     }
 
@@ -239,12 +241,12 @@ static int create_and_connect_socket(const char *hostname, const char *port)
         goto fail;
     }
 
-    zsock_freeaddrinfo(host_addrinfo);
+    edgehog_freeaddrinfo(host_addrinfo);
 
     return sock;
 
 fail:
     zsock_close(sock);
-    zsock_freeaddrinfo(host_addrinfo);
+    edgehog_freeaddrinfo(host_addrinfo);
     return -1;
 }
