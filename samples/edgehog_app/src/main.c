@@ -97,44 +97,6 @@ static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3
  */
 static void zbus_thread_entry_point(void *arg1, void *arg2, void *arg3);
 #endif
-/**
- * @brief Callback handler for Astarte connection events.
- *
- * @param event Astarte device connection event.
- */
-static void astarte_device_connection_callback(astarte_device_connection_event_t event);
-/**
- * @brief Callback handler for Astarte disconnection events.
- *
- * @param event Astarte device disconnection event.
- */
-static void astarte_device_disconnection_callback(astarte_device_disconnection_event_t event);
-/**
- * @brief Callback handler for Astarte datastream individual event.
- *
- * @param event Astarte device datastream individual event.
- */
-static void astarte_device_datastream_individual_callback(
-    astarte_device_datastream_individual_event_t event);
-/**
- * @brief Callback handler for Astarte datastream object event.
- *
- * @param event Astarte device datastream object event pointer.
- */
-static void astarte_device_datastream_object_callback(
-    astarte_device_datastream_object_event_t event);
-/**
- * @brief Callback handler for Astarte property set event.
- *
- * @param event Astarte device property set event pointer.
- */
-static void astarte_device_property_set_callback(astarte_device_property_set_event_t event);
-/**
- * @brief Callback handler for Astarte property unset event.
- *
- * @param event Astarte device property unset event pointer.
- */
-static void astarte_device_property_unset_callback(astarte_device_data_event_t event);
 #ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
 /**
  * @brief Listen on the Edgehog zbus channel for events.
@@ -235,7 +197,9 @@ static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    // Configuration options for the Astarte device
+    // Configuring the Astarte device used by the Edgehog device to communicate with the cloud
+    // Edgehog instance. This device can also be leveraged by the user to send and receive data
+    // through Astarte, check out the sample README for more information.
     char cred_secr[ASTARTE_PAIRING_CRED_SECR_LEN + 1] = CONFIG_ASTARTE_CREDENTIAL_SECRET;
     char device_id[ASTARTE_DEVICE_ID_LEN + 1] = CONFIG_ASTARTE_DEVICE_ID;
 
@@ -243,13 +207,6 @@ static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     astarte_device_config.http_timeout_ms = HTTP_TIMEOUT_MS;
     astarte_device_config.mqtt_connection_timeout_ms = MQTT_FIRST_POLL_TIMEOUT_MS;
     astarte_device_config.mqtt_poll_timeout_ms = MQTT_POLL_TIMEOUT_MS;
-    astarte_device_config.connection_cbk = astarte_device_connection_callback;
-    astarte_device_config.disconnection_cbk = astarte_device_disconnection_callback;
-    astarte_device_config.datastream_individual_cbk = astarte_device_datastream_individual_callback;
-    astarte_device_config.datastream_object_cbk = astarte_device_datastream_object_callback;
-    astarte_device_config.property_set_cbk = astarte_device_property_set_callback;
-    astarte_device_config.property_unset_cbk = astarte_device_property_unset_callback;
-    astarte_device_config.cbk_user_data = (void *) &edgehog_device;
     memcpy(astarte_device_config.cred_secr, cred_secr, sizeof(cred_secr));
     memcpy(astarte_device_config.device_id, device_id, sizeof(device_id));
 
@@ -329,44 +286,6 @@ static void zbus_thread_entry_point(void *arg1, void *arg2, void *arg3)
     }
 }
 #endif
-
-static void astarte_device_connection_callback(astarte_device_connection_event_t event)
-{
-    ARG_UNUSED(event);
-    LOG_INF("Astarte device connected"); // NOLINT
-}
-
-static void astarte_device_disconnection_callback(astarte_device_disconnection_event_t event)
-{
-    ARG_UNUSED(event);
-    LOG_INF("Astarte device disconnected"); // NOLINT
-}
-
-static void astarte_device_datastream_individual_callback(
-    astarte_device_datastream_individual_event_t event)
-{
-    ARG_UNUSED(event);
-    LOG_INF("Astarte device received an individual datastream"); // NOLINT
-}
-
-static void astarte_device_datastream_object_callback(
-    astarte_device_datastream_object_event_t event)
-{
-    ARG_UNUSED(event);
-    LOG_INF("Astarte device received an object datastream"); // NOLINT
-}
-
-static void astarte_device_property_set_callback(astarte_device_property_set_event_t event)
-{
-    ARG_UNUSED(event);
-    LOG_INF("Astarte device received a property set"); // NOLINT
-}
-
-static void astarte_device_property_unset_callback(astarte_device_data_event_t event)
-{
-    ARG_UNUSED(event);
-    LOG_INF("Astarte device received a property unset"); // NOLINT
-}
 
 #ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
 static void edgehog_listen_zbus_channel(k_timeout_t timeout)
