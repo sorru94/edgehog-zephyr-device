@@ -37,7 +37,7 @@ EDGEHOG_LOG_MODULE_REGISTER(edgehog_device, CONFIG_EDGEHOG_DEVICE_DEVICE_LOG_LEV
  * Static functions declaration
  ***********************************************/
 
-static edgehog_result_t add_interfaces(edgehog_device_handle_t device);
+static edgehog_result_t add_interfaces(astarte_device_handle_t astarte_device);
 
 static void edgehog_initial_publish(edgehog_device_handle_t edgehog_device);
 
@@ -189,6 +189,14 @@ edgehog_result_t edgehog_device_new(
         return EDGEHOG_RESULT_INVALID_PARAM;
     }
 
+    // Step 1: Initialize the Edgehog settings
+    eres = edgehog_settings_init();
+    if (eres != EDGEHOG_RESULT_OK) {
+        EDGEHOG_LOG_ERR("Edgehog Settings Init failed");
+        goto failure;
+    }
+
+    // Step 2: Allocate space for the Edgehog device
     edgehog_device = calloc(1, sizeof(struct edgehog_device_t));
     if (!edgehog_device) {
         EDGEHOG_LOG_ERR("Out of memory %s: %d", __FILE__, __LINE__);
@@ -196,16 +204,20 @@ edgehog_result_t edgehog_device_new(
         goto failure;
     }
 
-    // Replace the user defined callbacks with our wrapper callbacks
+    // Step 3: Initialize the Astarte device
     astarte_device_config_t *astarte_device_config = &config->astarte_device_config;
-    edgehog_device->user_connection_cbk = astarte_device_config->connection_cbk;
-    edgehog_device->user_disconnection_cbk = astarte_device_config->disconnection_cbk;
-    edgehog_device->user_datastream_individual_cbk
+    astarte_device_connection_cbk_t user_connection_cbk = astarte_device_config->connection_cbk;
+    astarte_device_disconnection_cbk_t user_disconnection_cbk
+        = astarte_device_config->disconnection_cbk;
+    astarte_device_datastream_individual_cbk_t user_datastream_individual_cbk
         = astarte_device_config->datastream_individual_cbk;
-    edgehog_device->user_datastream_object_cbk = astarte_device_config->datastream_object_cbk;
-    edgehog_device->user_property_set_cbk = astarte_device_config->property_set_cbk;
-    edgehog_device->user_property_unset_cbk = astarte_device_config->property_unset_cbk;
-    edgehog_device->user_cbk_user_data = astarte_device_config->cbk_user_data;
+    astarte_device_datastream_object_cbk_t user_datastream_object_cbk
+        = astarte_device_config->datastream_object_cbk;
+    astarte_device_property_set_cbk_t user_property_set_cbk
+        = astarte_device_config->property_set_cbk;
+    astarte_device_property_unset_cbk_t user_property_unset_cbk
+        = astarte_device_config->property_unset_cbk;
+    void *user_cbk_user_data = astarte_device_config->cbk_user_data;
 
     astarte_device_config->connection_cbk = astarte_connection_cbk;
     astarte_device_config->disconnection_cbk = astarte_disconnection_cbk;
@@ -217,44 +229,51 @@ edgehog_result_t edgehog_device_new(
 
     ares = astarte_device_new(&config->astarte_device_config, &astarte_device);
     if (ares != ASTARTE_RESULT_OK) {
-        edgehog_device->astarte_error = ares;
         EDGEHOG_LOG_ERR("Astarte device creation error: %s", astarte_result_to_name(ares));
         eres = EDGEHOG_RESULT_ASTARTE_ERROR;
         goto failure;
     }
 
-    edgehog_device->astarte_device = astarte_device;
-
-    eres = edgehog_settings_init();
+    // Step 4: Add the edgehog interfaces to the Astarte device
+    eres = add_interfaces(astarte_device);
     if (eres != EDGEHOG_RESULT_OK) {
-        EDGEHOG_LOG_ERR("Edgehog Settings Init failed");
+        EDGEHOG_LOG_ERR("Unable to add interface into Astarte Device SDK");
         goto failure;
     }
 
-    eres = uuid_generate_v4_string(edgehog_device->boot_id);
+    // Step 5: Initialize the Edgehog device boot ID
+    char boot_id[UUID_STR_LEN + 1] = { 0 };
+    eres = uuid_generate_v4_string(boot_id);
     if (eres != EDGEHOG_RESULT_OK) {
         EDGEHOG_LOG_ERR("Unable to generate edgehog boot id");
         goto failure;
     }
 
+    // Step 6: Initialize the telemetry for the Edgehog device
     edgehog_telemetry_t *telemetry
         = edgehog_telemetry_new(config->telemetry_config, config->telemetry_config_len);
     if (!telemetry) {
         EDGEHOG_LOG_ERR("Unable to create edgehog telemetry update");
         goto failure;
     }
-    edgehog_device->telemetry = telemetry;
 
-    eres = add_interfaces(edgehog_device);
-    if (eres != EDGEHOG_RESULT_OK) {
-        EDGEHOG_LOG_ERR("Unable to add interface into Astarte Device SDK");
-        goto failure;
-    }
-
-    edgehog_device->state = EDGEHOG_DEVICE_STOPPED;
-    edgehog_device->initial_publish = false;
-    edgehog_device->telemerty_service = false;
-
+    // Step 7: Fill in the Edgehog device struct
+    *edgehog_device = (struct edgehog_device_t) {
+        .state = EDGEHOG_DEVICE_STOPPED,
+        .initial_publish = false,
+        .telemerty_service = false,
+        .astarte_device = astarte_device,
+        .astarte_error = ASTARTE_RESULT_OK,
+        .user_connection_cbk = user_connection_cbk,
+        .user_disconnection_cbk = user_disconnection_cbk,
+        .user_datastream_individual_cbk = user_datastream_individual_cbk,
+        .user_datastream_object_cbk = user_datastream_object_cbk,
+        .user_property_set_cbk = user_property_set_cbk,
+        .user_property_unset_cbk = user_property_unset_cbk,
+        .user_cbk_user_data = user_cbk_user_data,
+        .telemetry = telemetry,
+    };
+    memcpy(edgehog_device->boot_id, boot_id, UUID_STR_LEN + 1);
     *edgehog_handle = edgehog_device;
 
     return eres;
@@ -348,7 +367,7 @@ astarte_result_t edgehog_device_get_astarte_error(edgehog_device_handle_t edgeho
  * Static functions definition
  ***********************************************/
 
-static edgehog_result_t add_interfaces(edgehog_device_handle_t device)
+static edgehog_result_t add_interfaces(astarte_device_handle_t astarte_device)
 {
     const astarte_interface_t *const interfaces[] = {
         &io_edgehog_devicemanager_HardwareInfo,
@@ -371,9 +390,8 @@ static edgehog_result_t add_interfaces(edgehog_device_handle_t device)
     };
 
     for (int i = 0; i < ARRAY_SIZE(interfaces); i++) {
-        astarte_result_t ret = astarte_device_add_interface(device->astarte_device, interfaces[i]);
+        astarte_result_t ret = astarte_device_add_interface(astarte_device, interfaces[i]);
         if (ret != ASTARTE_RESULT_OK) {
-            device->astarte_error = ret;
             EDGEHOG_LOG_ERR("Unable to add Astarte interface ( %s ): %s", interfaces[i]->name,
                 astarte_result_to_name(ret));
             return EDGEHOG_RESULT_ASTARTE_ERROR;
