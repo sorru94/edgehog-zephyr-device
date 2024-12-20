@@ -15,7 +15,7 @@ SPDX-License-Identifier: Apache-2.0
 
 Edgehog is an open source device management platform focused on device fleet management.
 It eases the management of your connected embedded systems, by making all their information
-available remotely. Furthermore, it enables remote updates and system configuyration.
+available remotely. Furthermore, it enables remote updates and system configuration.
 
 This demo application shows how to create an Edgehog device using the Zephyr RTOS framework on
 the i.MX RT1064 evaluation kit.
@@ -43,7 +43,7 @@ The application demonstrates the use of the
 [Edgehog device for Zephyr](https://github.com/edgehog-device-manager/edgehog-zephyr-device) at
 version **0.7.0**.
 
-Every Edgehog device relies internally on the [Astarte](https://docs.astarte-platform.org/) plaftorm
+Every Edgehog device relies internally on the [Astarte](https://docs.astarte-platform.org/) platform
 to enable remote communication. In this application we will rely on the
 [Astarte quick instance](https://docs.astarte-platform.org/device-sdks/common/astarte_quick_instance.html)
 tutorial. Ensure all its requirements are satisfied and dependencies installed.
@@ -76,7 +76,7 @@ Make sure you do not lose the following information:
 - The location of your Astarte instance. The default for the Astarte quick instance is an `astarte`
   folder in your home.
 - The Astarte API endpoint. If you followed the Astarte quick instance guide you should have
-  choosen to configure Astarte for an external device. As a consequence this endpoint will be:
+  chosen to configure Astarte for an external device. As a consequence this endpoint will be:
   `api.astarte.<YOUR IP ADDRESS>.nip.io`.
 - A device ID registered using the dashboard and its associated credential secret. If you followed
   the Astarte quick instance guide you can register a device in the dashboard, navigating to the
@@ -110,7 +110,7 @@ You can now bring up the docker containers required using docker compose.
 docker compose up -d
 ```
 
-Next, we will popuplate the Edgehog database.
+Next, we will populate the Edgehog database.
 ```sh
 docker compose exec edgehog-backend bin/edgehog eval Edgehog.Release.seed
 ```
@@ -130,7 +130,7 @@ pip install -r ./tools/requirements.txt
 ./tools/gen-edgehog-jwt -k ./backend/priv/repo/seeds/keys/tenant_private.pem -t tenant
 ```
 
-Now you can login to your Edgehog tennant in the page `http://edgehog.<YOUR IP ADDRESS>.nip.io`.
+Now you can login to your Edgehog tenant in the page `http://edgehog.<YOUR IP ADDRESS>.nip.io`.
 You should use the token just generated with the tenant name `acme-inc`.
 
 ### 3.3 Step 3
@@ -162,7 +162,7 @@ with `api.astarte.<YOUR IP ADDRESS>.nip.io` and `test` respectively.
 
 Upon running the code the demo application will display on the serial monitor its progression.
 The device will first connect to Astarte using the credential secret.
-Once the device is connected it will appear in the Edgehog dashoard and the user will be able to
+Once the device is connected it will appear in the Edgehog dashboard and the user will be able to
 interact with it.
 For example an OTA update can be performed. You will first need to locate the binary generated
 during the build process and then trigger the update procedure using the dashboard.
