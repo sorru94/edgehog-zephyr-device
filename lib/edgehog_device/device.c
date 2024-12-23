@@ -344,7 +344,7 @@ edgehog_result_t edgehog_device_stop(edgehog_device_handle_t edgehog_device, k_t
         EDGEHOG_LOG_ERR("Unable to stop the Edgehog device within the timeout");
         return eres;
     }
-    astarte_result_t ares = astarte_device_disconnect(edgehog_device->astarte_device);
+    astarte_result_t ares = astarte_device_disconnect(edgehog_device->astarte_device, timeout);
     if (ares != ASTARTE_RESULT_OK) {
         edgehog_device->astarte_error = ares;
         EDGEHOG_LOG_ERR("Astarte device disconnection failure %s.", astarte_result_to_name(ares));
@@ -412,7 +412,7 @@ static void edgehog_initial_publish(edgehog_device_handle_t edgehog_device)
     publish_system_status(edgehog_device);
     publish_storage_usage(edgehog_device);
 #ifdef CONFIG_WIFI
-    edgehog_wifi_scan_start(edgehog_device->astarte_device);
+    edgehog_wifi_scan_start();
 #endif
 }
 
@@ -424,7 +424,7 @@ void edgehog_device_publish_telemetry(edgehog_device_handle_t device, edgehog_te
             break;
 #ifdef CONFIG_WIFI
         case EDGEHOG_TELEMETRY_WIFI_SCAN:
-            edgehog_wifi_scan_start(device->astarte_device);
+            edgehog_wifi_scan_start();
             break;
 #endif
         case EDGEHOG_TELEMETRY_SYSTEM_STATUS:
