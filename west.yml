@@ -18,7 +18,14 @@ manifest:
     - name: zephyr
       remote: zephyrproject-rtos
       revision: v4.2.1
-      import: true
+      import:
+        name-allowlist:
+          - cmsis_6
+          - hal_nxp
+          - mbedtls
+          - picolibc
+          - mcuboot
+          - littlefs
     - name: astarte-device-sdk-zephyr
       remote: astarte-platform
       repo-path: astarte-device-sdk-zephyr.git
