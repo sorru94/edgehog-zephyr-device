@@ -32,6 +32,8 @@ LOG_MODULE_REGISTER(edgehog_app, CONFIG_APP_LOG_LEVEL); // NOLINT
 #include "eth.h"
 #endif
 
+#include "sample_config.h"
+
 /************************************************
  * Constants and defines
  ***********************************************/
@@ -90,7 +92,7 @@ static void system_time_init(void);
  * @param arg2 Unused argument.
  * @param arg3 Unused argument.
  */
-static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3);
+static void edgehog_device_thread_entry_point(void *device_id, void *cred_secr, void *arg3);
 #ifdef CONFIG_EDGEHOG_DEVICE_ZBUS_OTA_EVENT
 /**
  * @brief Entry point for the Zbus reception thread.
@@ -121,14 +123,21 @@ int main(void)
     LOG_INF("Edgehog device sample"); // NOLINT
     LOG_INF("Board: %s", CONFIG_BOARD); // NOLINT
 
+    struct sample_config cfg_from_file = { 0 };
+    sample_config_get(&cfg_from_file);
+    LOG_INF("Configured device ID: %s", cfg_from_file.device_id);
+    LOG_INF("Configured credential secret: %s", cfg_from_file.credential_secret);
+#if defined(CONFIG_WIFI)
+    LOG_INF("Configured WiFi SSID: %s", cfg_from_file.wifi_ssid);
+    LOG_INF("Configured WiFi password: %s", cfg_from_file.wifi_pwd);
+#endif
+
 #if defined(CONFIG_WIFI)
     LOG_INF("Initializing WiFi driver."); // NOLINT
     app_wifi_init();
     k_sleep(K_SECONDS(5));
-    const char *ssid = CONFIG_WIFI_SSID;
     enum wifi_security_type sec = WIFI_SECURITY_TYPE_PSK;
-    const char *psk = CONFIG_WIFI_PASSWORD;
-    if (app_wifi_connect(ssid, sec, psk) != 0) {
+    if (app_wifi_connect(cfg_from_file.wifi_ssid, sec, cfg_from_file.wifi_pwd) != 0) {
         LOG_ERR("Connectivity intialization failed!"); // NOLINT
         return -1;
     }
@@ -158,7 +167,8 @@ int main(void)
     // Spawn a new thread for the Edgehog device
     k_thread_create(&edgehog_device_thread_data, edgehog_device_thread_stack_area,
         K_THREAD_STACK_SIZEOF(edgehog_device_thread_stack_area), edgehog_device_thread_entry_point,
-        NULL, NULL, NULL, CONFIG_EDGEHOG_DEVICE_THREAD_PRIORITY, 0, K_NO_WAIT);
+        cfg_from_file.device_id, cfg_from_file.credential_secret, NULL,
+        CONFIG_EDGEHOG_DEVICE_THREAD_PRIORITY, 0, K_NO_WAIT);
 
     // Wait for a predefined operational time.
     k_timepoint_t finish_timepoint = sys_timepoint_calc(K_SECONDS(CONFIG_SAMPLE_DURATION_SECONDS));
@@ -209,24 +219,20 @@ static void system_time_init()
 #endif
 }
 
-static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3)
+static void edgehog_device_thread_entry_point(void *device_id, void *cred_secr, void *arg3)
 {
-    ARG_UNUSED(arg1);
-    ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
     // Configuring the Astarte device used by the Edgehog device to communicate with the cloud
     // Edgehog instance. This device can also be leveraged by the user to send and receive data
     // through Astarte, check out the sample README for more information.
-    char cred_secr[ASTARTE_PAIRING_CRED_SECR_LEN + 1] = CONFIG_ASTARTE_CREDENTIAL_SECRET;
-    char device_id[ASTARTE_DEVICE_ID_LEN + 1] = CONFIG_ASTARTE_DEVICE_ID;
 
     astarte_device_config_t astarte_device_config = { 0 };
     astarte_device_config.http_timeout_ms = HTTP_TIMEOUT_MS;
     astarte_device_config.mqtt_connection_timeout_ms = MQTT_FIRST_POLL_TIMEOUT_MS;
     astarte_device_config.mqtt_poll_timeout_ms = MQTT_POLL_TIMEOUT_MS;
-    memcpy(astarte_device_config.cred_secr, cred_secr, sizeof(cred_secr));
-    memcpy(astarte_device_config.device_id, device_id, sizeof(device_id));
+    memcpy(astarte_device_config.cred_secr, cred_secr, ASTARTE_PAIRING_CRED_SECR_LEN + 1);
+    memcpy(astarte_device_config.device_id, device_id, ASTARTE_DEVICE_ID_LEN + 1);
 
     edgehog_result_t eres = EDGEHOG_RESULT_OK;
 

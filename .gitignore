@@ -28,3 +28,6 @@ samples/*/private.conf
 
 # cache
 .cache
+
+# Binary file for config file
+lfs.bin
