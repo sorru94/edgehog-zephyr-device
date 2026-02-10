@@ -23,7 +23,7 @@ jobs:
           path: edgehog-zephyr-device
       - name: Set CI manifest as defaults
         working-directory: edgehog-zephyr-device
-        run: mv west-ci-4.2.yml west.yml
+        run: mv west-ci-reference.yml west.yml
       - name: Checkout Edgehog interfaces
         uses: actions/checkout@v6
         with:

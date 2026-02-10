@@ -31,7 +31,7 @@ jobs:
           path: ${{ env.PROJECT_MANIFEST_FOLDER }}
       - name: Set CI manifest as defaults
         working-directory: ${{ env.PROJECT_MANIFEST_FOLDER }}
-        run: mv west-ci-4.2.yml west.yml
+        run: mv west-ci-reference.yml west.yml
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
