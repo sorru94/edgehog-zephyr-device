@@ -25,9 +25,9 @@ jobs:
       matrix:
         sample-variant:
           - name: "sample.default"
-            zephyr-version: "4.2"
+            zephyr-version: "reference"
           - name: "sample.wifi"
-            zephyr-version: "4.2"
+            zephyr-version: "reference"
     concurrency:
       group: build-${{ matrix.sample-variant.name }}-${{ github.ref }}
       cancel-in-progress: true
