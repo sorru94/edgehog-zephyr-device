@@ -7,11 +7,15 @@ import logging
 import datetime
 
 from configuration import Configuration
-from http_server import start_server, stop_server
+from http_server import start_server, stop_server, generate_archives
 from telemetry import validate_initial_telemetry, validate_telemetry_frequency
 from file_transfer import file_transfer_test
 
 logger = logging.getLogger(__name__)
+# Silence the HTTP connection logs from urllib3 (used by requests)
+logging.getLogger("urllib3").setLevel(logging.INFO)
+# Silence the requests library specifically
+logging.getLogger("requests").setLevel(logging.INFO)
 
 SHELL_IS_READY = "dvcshellcmd Device shell ready$"
 SHELL_IS_CLOSING = "dvcshellcmd Device shell closing$"
@@ -21,6 +25,8 @@ SHELL_CMD_DISCONNECT = "dvcshellcmd_disconnect"
 def test_device(end_to_end_configuration: Configuration):
 
     initial_time = datetime.datetime.now(datetime.timezone.utc)
+
+    generate_archives(end_to_end_configuration.http_server_data_dir)
 
     logger.info("Starting the http server")
 
@@ -45,6 +51,9 @@ def test_device(end_to_end_configuration: Configuration):
     time.sleep(1)
 
     file_transfer_test(end_to_end_configuration)
+
+    # Wait a couple of seconds
+    time.sleep(10)
 
     end_to_end_configuration.dut.readlines()
     end_to_end_configuration.shell.exec_command(SHELL_CMD_DISCONNECT)

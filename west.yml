@@ -21,3 +21,7 @@ manifest:
       remote: astarte-platform
       revision: master
       import: true
+    - name: lz4
+      url: https://github.com/zephyrproject-rtos/lz4
+      revision: zephyr
+      path: modules/lib/lz4

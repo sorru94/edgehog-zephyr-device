@@ -141,6 +141,21 @@ module-str = Log level for device handler
 module-help = Sets log level for zephyr device handler
 source "subsys/logging/Kconfig.template.log_config"
 
+module = DECOMPRESSION
+module-str = Log level for decompression
+module-help = Sets log level for zephyr decompression
+source "subsys/logging/Kconfig.template.log_config"
+
+module = COMPRESSION
+module-str = Log level for compression
+module-help = Sets log level for zephyr compression
+source "subsys/logging/Kconfig.template.log_config"
+
+module = ZTAR
+module-str = Log level for ztar
+module-help = Sets log level for zephyr ztar
+source "subsys/logging/Kconfig.template.log_config"
+
 endmenu
 
 endmenu

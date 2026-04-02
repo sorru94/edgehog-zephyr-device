@@ -107,8 +107,7 @@ static int send_buffer_fully(int sock, const uint8_t *buf, size_t len);
  *
  * @param rsp Pointer to the HTTP response structure.
  * @param final_data Enum indicating if this is the final chunk of data.
- * @param user_data Pointer to the user-provided context.
- *
+ * @param user_data Pointer to the user-provided context. *
  * @return 0 on success, or a negative value on error or if aborted by the user.
  */
 static int get_response_cbk(
@@ -161,7 +160,6 @@ static int put_response_cbk(
  * @param sock The connected socket descriptor.
  * @param req Pointer to the HTTP request structure.
  * @param user_data Pointer to the user-provided context.
- *
  * @return The total number of bytes sent, or a negative value on error.
  */
 static int put_payload_cbk(int sock, struct http_request * /*req*/, void *user_data)

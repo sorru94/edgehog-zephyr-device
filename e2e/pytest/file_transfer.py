@@ -16,6 +16,10 @@ interface_ft_response = "io.edgehog.devicemanager.fileTransfer.Response"
 logger = logging.getLogger(__name__)
 
 def file_transfer_test(end_to_end_configuration: Configuration):
+
+    logger.info("Testing file transfer")
+    logger.info("Requesting file transfer from server to device")
+
     ft_data = {
         "url": "https://192.0.2.2:8443/test_data.txt",
         "progress": True,
@@ -32,12 +36,12 @@ def file_transfer_test(end_to_end_configuration: Configuration):
         "compression": "tar.gz",
         "fileName": "backup.tar.gz"
     }
-
     start_time = datetime.now(timezone.utc)
-
     http_post_server_data(end_to_end_configuration, interface_ft_server_to_device, "/request", ft_data)
 
     timeout = 30
+    logger.info(f"Waiting {timeout} seconds for file transfer response from device")
+
     start_polling = time.time()
     ft_res = {}
 
@@ -50,7 +54,7 @@ def file_transfer_test(end_to_end_configuration: Configuration):
             since_after=start_time
         )
 
-        # response received
+        # Check if a response is received, if not wait for a few seconds and poll again
         if "request" in ft_res and len(ft_res["request"]) > 0:
             break
 
@@ -58,3 +62,5 @@ def file_transfer_test(end_to_end_configuration: Configuration):
 
     assert "request" in ft_res, "No response received"
     assert ft_res["request"][0]["code"] == '0'
+
+    logger.info("File transfer test completed successfully")
