@@ -9,18 +9,15 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
     - name: astarte-platform
       url-base: https://github.com/astarte-platform
-    - name: secomind
-      url-base: https://github.com/secomind
 
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v4.3.0
+      revision: v4.4.0
       import:
-        # By using name-allowlist we can clone only the modules that are
-        # strictly needed by the application.
         name-allowlist:
           - mbedtls
+          - tf-psa-crypto
           - picolibc
           - mcuboot
           - net-tools
