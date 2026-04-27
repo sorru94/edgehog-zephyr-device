@@ -26,6 +26,11 @@
 #include "wifi_scan.h"
 
 #include <stdlib.h>
+#include <string.h>
+
+#if __POSIX_VISIBLE < 200809
+char *strdup(const char *);
+#endif
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
@@ -231,6 +236,9 @@ edgehog_result_t edgehog_device_new(
     astarte_device_handle_t astarte_device = NULL;
     edgehog_result_t eres = EDGEHOG_RESULT_OK;
     astarte_result_t ares = ASTARTE_RESULT_OK;
+
+    char *orig = "hello world";
+    char *copy = strdup(orig);
 
     if (!config || !edgehog_handle) {
         EDGEHOG_LOG_ERR("Unable to init Edgehog device, missing config or device handle.");
