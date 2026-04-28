@@ -381,6 +381,13 @@ static edgehog_result_t edgehog_ota_event_update(
         goto fail;
     }
 
+#ifdef CONFIG_THREAD_NAME
+    int ret = k_thread_name_set(thread_id, "edgehog_ota_thread");
+    if (ret != 0) {
+        EDGEHOG_LOG_ERR("Failed to set thread name, error %d", ret);
+    }
+#endif
+
     return edgehog_result;
 
 fail:
