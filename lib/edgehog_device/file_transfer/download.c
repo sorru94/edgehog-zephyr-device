@@ -9,7 +9,6 @@
 #include "edgehog_private.h"
 #include "file_transfer/core.h"
 #include "file_transfer/filesystem.h"
-#include "file_transfer/storage.h"
 #include "file_transfer/stream.h"
 #include "file_transfer/utils.h"
 #include "http.h"
@@ -275,9 +274,7 @@ static int verify_digest(edgehog_ft_http_cbk_data_t *data, const char *expected_
 const edgehog_ft_file_write_cbks_t *get_callbacks(const char *destination_type)
 {
     const edgehog_ft_file_write_cbks_t *file_cbks = NULL;
-    if (strcmp(destination_type, "storage") == 0) {
-        file_cbks = &file_transfer_storage_write_cbks;
-    } else if (strcmp(destination_type, "stream") == 0) {
+    if (strcmp(destination_type, "stream") == 0) {
         file_cbks = &edgehog_ft_stream_write_cbks;
     } else if (strcmp(destination_type, "filesystem") == 0) {
         file_cbks = &edgehog_ft_filesystem_write_cbks;

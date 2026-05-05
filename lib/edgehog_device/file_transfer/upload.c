@@ -9,7 +9,6 @@
 #include "edgehog_private.h"
 #include "file_transfer/core.h"
 #include "file_transfer/filesystem.h"
-#include "file_transfer/storage.h"
 #include "file_transfer/stream.h"
 #include "file_transfer/utils.h"
 #include "http.h"
@@ -159,9 +158,7 @@ exit:
 const edgehog_ft_file_read_cbks_t *get_callbacks(const char *source_type)
 {
     const edgehog_ft_file_read_cbks_t *file_cbks = NULL;
-    if (strcmp(source_type, "storage") == 0) {
-        file_cbks = &file_transfer_storage_read_cbks;
-    } else if (strcmp(source_type, "stream") == 0) {
+    if (strcmp(source_type, "stream") == 0) {
         file_cbks = &edgehog_ft_stream_read_cbks;
     } else if (strcmp(source_type, "filesystem") == 0) {
         file_cbks = &edgehog_ft_filesystem_read_cbks;
