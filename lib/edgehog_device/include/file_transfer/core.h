@@ -30,9 +30,9 @@ typedef struct
     bool progress;
     /** @brief A SHA-256 hash for the file to transfer, prefixed by "sha256:". */
     char *digest;
-    /** @brief Location for the file (storage, streaming, filesystem). */
+    /** @brief Location for the file (streaming, filesystem). */
     char *location_type;
-    /** @brief Location-specific information on how to perform the storage. */
+    /** @brief Location-specific information on how to save the file. */
     char *location;
     /** @brief The type of the message, indicating which payload to read. */
     edgehog_ft_type_t type;
