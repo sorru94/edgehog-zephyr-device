@@ -22,13 +22,13 @@
 #include "storage_usage.h"
 #include "system_info.h"
 #include "system_status.h"
-#include "uuid.h"
 #include "wifi_scan.h"
 
 #include <stdlib.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/sys/uuid.h>
 
 #include <astarte_device_sdk/device.h>
 #include <astarte_device_sdk/interface.h>
@@ -292,10 +292,16 @@ edgehog_result_t edgehog_device_new(
     }
 
     // Step 5: Initialize the Edgehog device boot ID
-    char boot_id[UUID_STR_LEN + 1] = { 0 };
-    eres = uuid_generate_v4_string(boot_id);
-    if (eres != EDGEHOG_RESULT_OK) {
-        EDGEHOG_LOG_ERR("Unable to generate edgehog boot id");
+    struct uuid boot_id = { 0 };
+    char boot_id_str[UUID_STR_LEN] = { 0 };
+    int res = uuid_generate_v4(&boot_id);
+    if (res != 0) {
+        EDGEHOG_LOG_ERR("Unable to generate Edgehog boot ID: %d", res);
+        goto failure;
+    }
+    res = uuid_to_string(&boot_id, boot_id_str);
+    if (res != 0) {
+        EDGEHOG_LOG_ERR("Unable to generate Edgehog boot ID: %d", res);
         goto failure;
     }
 
@@ -338,7 +344,7 @@ edgehog_result_t edgehog_device_new(
 
     k_sem_init(&edgehog_device->sync_ota_ft_sem, 1, 1);
 
-    memcpy(edgehog_device->boot_id, boot_id, UUID_STR_LEN + 1);
+    memcpy(edgehog_device->boot_id, boot_id_str, UUID_STR_LEN);
     *edgehog_handle = edgehog_device;
 
     // Step 8: Initialize the WiFi scan driver
