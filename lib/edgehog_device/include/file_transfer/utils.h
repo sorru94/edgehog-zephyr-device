@@ -16,7 +16,9 @@
 
 #include <psa/crypto.h>
 
+#include "file_transfer/compression.h"
 #include "file_transfer/core.h"
+#include "file_transfer/decompression.h"
 
 /** @brief HTTP request timeout duration in milliseconds. */
 #define EDGEHOG_FT_HTTP_REQ_TIMEOUT_MS (60 * 1000)
@@ -52,6 +54,18 @@ typedef struct
     const char *expected_digest;
     /** @brief The hash operation context for streaming digest calculation */
     psa_hash_operation_t hash_operation;
+    /** @brief Optional encoding for the file transfer payload. */
+    enum edgehog_ft_encoding encoding;
+    /** @brief Decompression context for incoming downloaded files */
+    file_transfer_decompression_ctx_t decomp_ctx;
+    /** @brief Compression context for outgoing uploaded files */
+    file_transfer_compression_ctx_t comp_ctx;
+    /** @brief Buffer used to hold the compressed output chunk during uploads */
+    uint8_t comp_out_buf[1024];
+    /** @brief Track if the underlying file is fully read */
+    bool file_exhausted;
+    /** @brief Track if the LZ4 footer has been successfully written */
+    bool comp_footer_written;
 } edgehog_ft_http_cbk_data_t;
 
 /**

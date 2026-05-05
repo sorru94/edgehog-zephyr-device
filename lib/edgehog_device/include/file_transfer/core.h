@@ -17,6 +17,25 @@
 
 #include <zephyr/kernel.h>
 
+/**
+ * @brief Encodings and compressions for file transfers.
+ */
+enum edgehog_ft_encoding
+{
+    /** @brief No encoding applied. */
+    EDGEHOG_FT_ENCODING_NONE = 0,
+    /** @brief Gzip compression encoding. */
+    EDGEHOG_FT_ENCODING_GZ,
+    /** @brief LZ4 compression encoding. */
+    EDGEHOG_FT_ENCODING_LZ4,
+    /** @brief Tar archive encoding. */
+    EDGEHOG_FT_ENCODING_TAR,
+    /** @brief Tar archive with Gzip compression. */
+    EDGEHOG_FT_ENCODING_TAR_GZ,
+    /** @brief Tar archive with LZ4 compression. */
+    EDGEHOG_FT_ENCODING_TAR_LZ4,
+};
+
 /** @brief Wrapper for file transfer messages sent through the message queue. */
 typedef struct
 {
@@ -26,6 +45,8 @@ typedef struct
     char *url;
     /** @brief HTTP headers, as a NULL terminated list. */
     char **http_headers;
+    /** @brief Optional encoding for the file transfer payload. */
+    enum edgehog_ft_encoding encoding;
     /** @brief Flag to enable the progress reporting of the transfer. */
     bool progress;
     /** @brief A SHA-256 hash for the file to transfer, prefixed by "sha256:". */
