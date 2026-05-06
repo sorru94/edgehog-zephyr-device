@@ -23,6 +23,9 @@
 /** @brief HTTP request timeout duration in milliseconds. */
 #define EDGEHOG_FT_HTTP_REQ_TIMEOUT_MS (60 * 1000)
 
+/** @brief Size for the output buffer used to temporarely store the compressed chunk. */
+#define EDGEHOG_FT_COMPRESSED_OUT_BUFFER_SIZE 1024
+
 /** @brief Unified user data for HTTP callbacks. */
 typedef struct
 {
@@ -61,7 +64,7 @@ typedef struct
     /** @brief Compression context for outgoing uploaded files */
     file_transfer_compression_ctx_t comp_ctx;
     /** @brief Buffer used to hold the compressed output chunk during uploads */
-    uint8_t comp_out_buf[1024];
+    uint8_t comp_out_buf[EDGEHOG_FT_COMPRESSED_OUT_BUFFER_SIZE];
     /** @brief Track if the underlying file is fully read */
     bool file_exhausted;
     /** @brief Track if the LZ4 footer has been successfully written */

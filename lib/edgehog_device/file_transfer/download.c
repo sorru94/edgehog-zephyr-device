@@ -281,7 +281,7 @@ static edgehog_result_t process_uncompressed_chunk(
     if (eres != EDGEHOG_RESULT_OK) {
         data->posix_errno = EIO;
         data->message = "Failed to write chunk to file";
-        return EDGEHOG_RESULT_HTTP_REQUEST_ABORTED;
+        return eres;
     }
 
     // Stream the new chunk into the SHA-256 hash operation
