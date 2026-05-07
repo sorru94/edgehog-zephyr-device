@@ -413,8 +413,8 @@ static char **serialize_http_headers(
 
 static enum edgehog_ft_encoding parse_encoding_string(const char *string)
 {
-    if (strcmp(string, "gz") == 0) {
-        return EDGEHOG_FT_ENCODING_GZ;
+    if (strlen(string) == 0) {
+        return EDGEHOG_FT_ENCODING_NONE;
     }
     if (strcmp(string, "lz4") == 0) {
         return EDGEHOG_FT_ENCODING_LZ4;
@@ -422,13 +422,10 @@ static enum edgehog_ft_encoding parse_encoding_string(const char *string)
     if (strcmp(string, "tar") == 0) {
         return EDGEHOG_FT_ENCODING_TAR;
     }
-    if (strcmp(string, "tar.gz") == 0) {
-        return EDGEHOG_FT_ENCODING_TAR_GZ;
-    }
     if (strcmp(string, "tar.lz4") == 0) {
         return EDGEHOG_FT_ENCODING_TAR_LZ4;
     }
-    return EDGEHOG_FT_ENCODING_NONE;
+    return EDGEHOG_FT_ENCODING_UNSUPPORTED;
 }
 
 static void free_http_headers(char *header_fields[])

@@ -24,16 +24,14 @@ enum edgehog_ft_encoding
 {
     /** @brief No encoding applied. */
     EDGEHOG_FT_ENCODING_NONE = 0,
-    /** @brief Gzip compression encoding. */
-    EDGEHOG_FT_ENCODING_GZ,
     /** @brief LZ4 compression encoding. */
     EDGEHOG_FT_ENCODING_LZ4,
     /** @brief Tar archive encoding. */
     EDGEHOG_FT_ENCODING_TAR,
-    /** @brief Tar archive with Gzip compression. */
-    EDGEHOG_FT_ENCODING_TAR_GZ,
     /** @brief Tar archive with LZ4 compression. */
     EDGEHOG_FT_ENCODING_TAR_LZ4,
+    /** @brief Unsupported encoding. */
+    EDGEHOG_FT_ENCODING_UNSUPPORTED,
 };
 
 /** @brief Wrapper for file transfer messages sent through the message queue. */
