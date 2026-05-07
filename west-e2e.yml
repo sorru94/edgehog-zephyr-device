@@ -23,5 +23,5 @@ manifest:
           - net-tools
     - name: astarte-device-sdk-zephyr
       remote: astarte-platform
-      revision: master
+      revision: a72dd16efa95bdbfc218d2fb0db293554558efa8
       import: true
