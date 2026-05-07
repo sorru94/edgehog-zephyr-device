@@ -59,6 +59,7 @@ typedef struct
     psa_hash_operation_t hash_operation;
     /** @brief Optional encoding for the file transfer payload. */
     enum edgehog_ft_encoding encoding;
+#ifdef CONFIG_EDGEHOG_DEVICE_FILE_TRANSFER_COMPRESSION
     /** @brief Decompression context for incoming downloaded files */
     file_transfer_decompression_ctx_t decomp_ctx;
     /** @brief Compression context for outgoing uploaded files */
@@ -69,6 +70,7 @@ typedef struct
     bool file_exhausted;
     /** @brief Track if the LZ4 footer has been successfully written */
     bool comp_footer_written;
+#endif
 } edgehog_ft_http_cbk_data_t;
 
 /**
