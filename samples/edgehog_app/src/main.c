@@ -311,12 +311,6 @@ static void edgehog_device_thread_entry_point(void *arg1, void *arg2, void *arg3
     while (!atomic_test_bit(&device_threads_flags, DEVICE_THREADS_FLAGS_TERMINATION)) {
         k_timepoint_t timepoint = sys_timepoint_calc(K_MSEC(EDGEHOG_DEVICE_PERIOD_MS));
 
-        eres = edgehog_device_poll(edgehog_device);
-        if (eres != EDGEHOG_RESULT_OK) {
-            LOG_ERR("Edgehog device poll failure."); // NOLINT
-            goto exit;
-        }
-
         k_sleep(sys_timepoint_timeout(timepoint));
     }
 
