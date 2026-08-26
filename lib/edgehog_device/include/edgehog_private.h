@@ -26,10 +26,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/uuid.h>
 
-#ifndef CONFIG_EDGEHOG_DEVICE_WORKER_THREAD_STACK_SIZE
-#define CONFIG_EDGEHOG_DEVICE_WORKER_THREAD_STACK_SIZE 4096
-#endif
-
 /** @brief Possible states for the Edgehog device. */
 enum device_states
 {
